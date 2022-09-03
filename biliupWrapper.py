@@ -95,5 +95,5 @@ if __name__ == '__main__':
             if not cleanup: put_medianame_backin(stripped_media_names, media, shazamed = r'D:\tmp\ytd\convert2music', nonshazamed = r'D:\tmp\ytd\extract')
         except BaseException:
             # the show must go on...
-            for i in glob.glob('*.mp4'): os.remove(i)
+            for i in glob.glob('*.mp4') + glob.glob('*.aria2') + glob.glob('*.part'): os.remove(i)
 
