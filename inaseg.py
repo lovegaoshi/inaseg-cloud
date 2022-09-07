@@ -2,17 +2,22 @@
 from inaSpeechSegmenter import Segmenter
 import subprocess, os, glob
 from threading import Thread
+from inaConstant import load_config, save_config
+
 class TimestampMismatch(Exception):
     pass
 
 # select a media to analyse
 # any media supported by ffmpeg may be used (video, audio, urls)
 import json, shutil
+
 def segment(media, batch_size = 32, energy_ratio = 0.02):
     print('segmenting', media)
     seg = Segmenter(vad_engine='sm', detect_gender=False, energy_ratio = energy_ratio, batch_size = batch_size)
     segmentation = seg(media)
     return segmentation
+
+
 def extract_music(segmentation, segment_thres = 60, segment_thres_final = 80, 
                   segment_connect = 5, start_padding = 1, end_padding = 2):
     r = []
@@ -37,14 +42,16 @@ def extract_music(segmentation, segment_thres = 60, segment_thres_final = 80,
              '{}:{}:{}'.format(str(int(x[2]//3600)), 
                                str(int(x[2]  % 3600  //60)), 
                                str(int(x[2] % 60)).zfill(2))] for x in rf]
+
+
 def extract_mah_stuff(media, segmented_stamps, outdir = None, rev = False, delimited = '/', timestamps = [], soundonly = True):
     nameswitch = False
     timestamps_ext = segmented_stamps#extract_music(segmentation)#[['{}:{}:{}'.format(str(int(x[1]//3600)), str(int(x[1] % 3600 //60)), str(int(x[1] % 60)).zfill(2)),  '{}:{}:{}'.format(str(int(x[2]//3600)), str(int(x[2]  % 3600  //60)), str(int(x[2] % 60)).zfill(2))] for x in r]
     try:
         if len(timestamps) > 0: raise FileNotFoundError()
         for i in open(r"D:\tmp\ytd\timstamp.ini", 'r', encoding='UTF-8'):
-            i = i.replace('\n','').replace('」', '').replace('~「',' ').replace('「', ' ').replace(
-                '『', ' ').replace('』', ' ').replace('　', ' ').replace('	', ' ').replace('\'','')
+            for k in [['\n',''],['」', ''],['~「',' '],['「', ' '],['『', ' '],['』', ' '],['　', ' '],['	', ' '],['\'',''],]:
+                i = i.replace(k[0], k[1])
             if ' （' in i: i = i[:i.find(' （')]
             if ':' in i:
                 timestamps.append([i[:i.find(' ')], i[i.find(' ')+1:]])
@@ -77,6 +84,10 @@ def extract_mah_stuff(media, segmented_stamps, outdir = None, rev = False, delim
         pass
     if len(timestamps) > 0: print('timestamp assist', [ [timestamps[x][0], timestamps_ext[x][1], timestamps[x][1], ] for x in range(len(timestamps))])
     else: print('extracted timestamps', ['{} - {}'.format(x[0], x[1]) for x in timestamps_ext])
+    
+    save = load_config('save.yaml')
+    save[os.path.basename(media)] = timestamps_ext
+    save_config('save.yaml', save)
     nameswitch = False
     file = media
     filename = file[:file.rfind('.')]
@@ -385,6 +396,13 @@ def shazaming(outdir, media, shazam_coverart_path = '', shazam_func = shazam_ori
         for file in files:
             shazam_threaded(file, shazam_coverart_path = shazam_coverart_path, shazam_func = shazam_func, ignore_fails = ignore_fails)
 
+    save = load_config('save.yaml')
+    mediab = os.path.basename(media)
+    save[os.path.basename(media) + "shazam"] = glob.glob(os.path.join(
+        outdir, '*' + mediab[1:mediab.rfind('.')] + '*'
+    ))
+    save_config('save.yaml', save)
+    
 def shazam_threaded(file, shazam_coverart_path = '', shazam_func = shazam_orig, ignore_fails = True):
     results = {}
     if ' by ' in file: return
@@ -440,7 +458,7 @@ if __name__ == '__main__':
             try:
                 tf.config.experimental.set_virtual_device_configuration(
                     gpus[0],
-                    [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=5242)])
+                    [tf.config.experimental.VirtualDeviceConfiguration(memory_limit=5424)])
                 logical_gpus = tf.config.experimental.list_logical_devices('GPU')
                 print(len(gpus), "Physical GPUs,", len(logical_gpus), "Logical GPUs")
                 os.environ["TF_GPU_ALLOCATOR"]="cuda_malloc_async"
